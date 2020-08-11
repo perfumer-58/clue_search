@@ -7,14 +7,14 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r packages}
+```{r packages, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(readxl)
 library(ggplot2)
 library(ggthemes)
 ```
 
-```{r data}
+```{r data, message=FALSE, warning=FALSE}
 clue_search <- read_csv("https://raw.githubusercontent.com/perfumer-58/clue_search/master/Data/clue_search_data.csv") %>%
   filter(complete.cases(.))
 
@@ -33,108 +33,8 @@ clue_search %>%
   arrange(-n)
 ```
 
-# Effect of Rhodes Island
-
-```{r w gitano, message=FALSE, warning=FALSE}
-rhodes_island <- clue_search %>%
-  filter(bonus_1 == 0, bonus_2 == 0) %>%
-  mutate(rhodes_island = if_else(faction_1 == "rhodes_island" | faction_2 == "rhodes_island",
-                                 "w/ Rhodes Island",
-                                 "w/o Rhodes Island")) %>%
-  group_by(rhodes_island, clue) %>%
-  summarise(n = n()) %>%
-  pivot_wider(id_cols = clue,
-              names_from = rhodes_island,
-              values_from = n,
-              values_fill = 0) %>%
-  arrange(clue) %>%
-  remove_rownames %>% 
-  column_to_rownames(var = "clue")
-```
-
-```{r }
-library("gplots")
-# 1. convert the data as a table
-dt <- as.table(as.matrix(rhodes_island))
-# 2. Graph
-balloonplot(t(dt), main ="Clue Search", xlab ="Operators", ylab="Clue",
-            label = F, show.margins = F)
-```
-
-```{r chi-squared test}
-chisq <- rhodes_island %>%
-  chisq.test()
-
-chisq
-```
-
-```{r observed counts}
-# Observed counts
-chisq$observed
-```
-
-```{r expected counts}
-# Expected counts
-round(chisq$expected,2)
-```
-
-# Effect of Jessica
-```{r w jessica, message=FALSE, warning=FALSE}
-jessica <- clue_search %>%
-  mutate(jessica = if_else(operator_1 == "Jessica" | operator_2 == "Jessica",
-                           "w/ Jessica",
-                           "w/o Jessica")) %>%
-  group_by(jessica, clue) %>%
-  summarise(n = n()) %>%
-  pivot_wider(id_cols = clue,
-              names_from = jessica,
-              values_from = n,
-              values_fill = 0) %>%
-  arrange(clue) %>%
-  remove_rownames %>% 
-  column_to_rownames(var = "clue")
-```
-
-```{r }
-# 1. convert the data as a table
-dt <- as.table(as.matrix(jessica))
-# 2. Graph
-balloonplot(t(dt), main ="Clue Search", xlab ="Operators", ylab="Clue",
-            label = FALSE, show.margins = FALSE)
-```
-
-```{r chi-squared test}
-chisq <- jessica %>%
-  chisq.test()
-
-chisq
-```
-
-```{r observed counts}
-# Observed counts
-chisq$observed
-```
-
-```{r expected counts}
-# Expected counts
-round(chisq$expected,2)
-```
-
-
-## z-test
-```{r successes}
-success_trials <- jessica %>%
-  group_by(success = row.names(.) == 3) %>%
-  summarise_all(sum) %>%
-  pivot_longer(-success, names_to = "operators", values_to = "n") %>%
-  pivot_wider(id_cols = operators, names_from = success, values_from = n) %>%
-  mutate(trials = `TRUE` + `FALSE`)
-
-prop.test(success_trials$`TRUE`, success_trials$`trials`, p = NULL, alternative = "two.sided",
-          correct = TRUE)
-```
-
-```{r plot}
+# Graphs
+```{r plot, message=FALSE, warning=FALSE}
 data <- clue_search %>%
   filter(bonus_1 == 0, bonus_2 == 0) %>%
   group_by(clue) %>%
@@ -159,7 +59,7 @@ p <- data %>%
 p
 ```
 
-```{r export graphs}
+```{r export graphs, message=FALSE, warning=FALSE}
 dir.create("Graphs")
 
 ggsave("Graphs/frequency.png", plot = p, units = "in", width = 7, height = 432/700 * 7)
