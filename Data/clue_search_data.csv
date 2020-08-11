@@ -1,4 +1,6 @@
 date,reception_room,clue,operator_1,operator_2
+2020-07-31,1,5,Gitano,May
+2020-07-31,0,2,Gitano,May
 2020-07-31,0,2,Gitano,Rope
 2020-08-01,1,4,Gitano,Jessica
 2020-08-01,0,2,Gitano,Jessica
@@ -35,3 +37,5 @@ date,reception_room,clue,operator_1,operator_2
 2020-08-10,0,6,Jessica,Rope
 2020-08-10,0,3,Jessica,Rope
 2020-08-11,1,6,Gitano,Rope
+,,,,
+,,,,
