@@ -11,13 +11,14 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(readxl)
 library(ggplot2)
+library(ggthemes)
 ```
 
 ```{r data}
-clue_search <- read_csv("Data/clue_search_data.csv") %>%
+clue_search <- read_csv("https://raw.githubusercontent.com/perfumer-58/clue_search/master/Data/clue_search_data.csv") %>%
   filter(complete.cases(.))
 
-operators <- read_csv("Data/operators.csv")
+operators <- read_csv("https://raw.githubusercontent.com/perfumer-58/clue_search/master/Data/operators.csv")
 
 clue_search <- clue_search %>%
   left_join(operators, by = c("operator_1" = "operator")) %>%
