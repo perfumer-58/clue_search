@@ -20,9 +20,22 @@ clue_search <- read_csv("https://raw.githubusercontent.com/perfumer-58/clue_sear
 
 operators <- read_csv("https://raw.githubusercontent.com/perfumer-58/clue_search/master/Data/operators.csv")
 
+dates <- clue_search %>%
+  distinct(date)
+
+operators_by_date <- dates %>%
+  full_join(operators, by = c("date" = "from")) %>%
+  complete(date, operator) %>%
+  group_by(operator) %>%
+  fill(rank, level, faction, bonus, .direction = "down") %>%
+  filter(!is.na(operator))
+  
+
 clue_search <- clue_search %>%
-  left_join(operators, by = c("operator_1" = "operator")) %>%
-  left_join(operators, by = c("operator_2" = "operator"), suffix = c("_1", "_2"))
+  left_join(operators_by_date, by = c("date", "operator_1" = "operator")) %>%
+  left_join(operators_by_date, by = c("date", "operator_2" = "operator"), suffix = c("_1", "_2"))
+
+rm(dates, operators_by_date)
 ```
 
 
