@@ -47,6 +47,28 @@ clue_search %>%
 ```
 
 # Graphs
+```{r operators, message=FALSE, warning=FALSE}
+data <- clue_search %>%
+  select(operator_1, operator_2) %>%
+  pivot_longer(cols = c(operator_1, operator_2),
+               values_to = "operator") %>%
+  group_by(operator) %>%
+  summarise(n = n()) %>%
+  mutate(prop = n / sum(n) * 2) %>%
+  arrange(-prop) %>%
+  mutate(operator = factor(operator, .$operator))
+
+p_operators <- data %>%
+  ggplot(aes(x = operator, y = prop)) +
+  geom_col() +
+  labs(y = "", title = "Operators Used",
+       subtitle = "Per cent of clue searches",
+       caption = "Source: vienne") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_fivethirtyeight()
+```
+
+
 ```{r plot, message=FALSE, warning=FALSE}
 data <- clue_search %>%
   filter(bonus_1 == 0, bonus_2 == 0) %>%
@@ -58,7 +80,7 @@ caption <- paste0("n = ",
                   sum(data$n),
                   "\nSource: vienne")
 
-p <- data %>%
+p_clue_share <- data %>%
   ggplot(aes(x = clue, y = prop)) +
   geom_col() +
   labs(y = "", title = "Frequency of Clues",
@@ -75,5 +97,6 @@ p
 ```{r export graphs, message=FALSE, warning=FALSE}
 dir.create("Graphs")
 
-ggsave("Graphs/frequency.png", plot = p, units = "in", width = 7, height = 432/700 * 7)
+ggsave("Graphs/operators.png", plot = p_operators, units = "in", width = 7, height = 432/700 * 7)
+ggsave("Graphs/frequency.png", plot = p_clue_share, units = "in", width = 7, height = 432/700 * 7)
 ```
