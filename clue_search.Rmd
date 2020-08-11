@@ -140,10 +140,26 @@ data <- clue_search %>%
   summarise(n = n()) %>% 
   mutate(prop = n / sum(n))
 
+caption <- paste0("n = ",
+                  sum(data$n),
+                  "\nSource: vienne")
+
 p <- data %>%
   ggplot(aes(x = clue, y = prop)) +
   geom_col() +
-  scale_y_continuous(labels = scales::percent)
-
+  labs(y = "", title = "Frequency of Clues",
+       subtitle = "Operators without Clue Faction bonus",
+       caption = caption) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_continuous(breaks = 1:7) +
+  theme_fivethirtyeight()
+  
+  
 p
+```
+
+```{r export graphs}
+dir.create("Graphs")
+
+ggsave("Graphs/frequency.png", plot = p, units = "in", width = 7, height = 432/700 * 7)
 ```
