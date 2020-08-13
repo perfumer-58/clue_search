@@ -1,6 +1,8 @@
-operator,rank,faction,bonus
-Gitano,E1,rhodes_island,0
-Jessica,E1,blacksteel,3
-Rope,E1,arim_billiton,0
-Firewatch,E1,rhodes_island,0
-Shirayuki,E1,lungmen,0
+from,operator,rank,level,faction,bonus
+2020-07-31,Gitano,E1,60,rhodes_island,0
+2020-07-31,Jessica,E1,1,blacksteel,3
+2020-07-31,Rope,E1,1,rim_billiton,0
+2020-07-31,Firewatch,E1,40,rhodes_island,0
+2020-07-31,Shirayuki,E1,1,lungmen,0
+2020-07-31,May,E0,1,victoria,0
+2020-08-01,May,E1,1,victoria,2
