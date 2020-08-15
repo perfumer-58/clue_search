@@ -42,5 +42,10 @@ date,reception_room,clue,operator_1,operator_2
 2020-08-12,1,5,Gitano,Shirayuki
 2020-08-12,0,2,Rope,Shirayuki
 2020-08-12,0,2,Gitano,Rope
-2020-08-13,1,,Gitano,Rope
-2020-08-13,0,,Gitano,Rope
+2020-08-13,1,3,Gitano,Rope
+2020-08-13,0,4,Gitano,Rope
+2020-08-13,0,5,Rope,Shirayuki
+2020-08-13,0,2,Rope,Shirayuki
+2020-08-14,1,7,Rope,Shirayuki
+2020-08-14,0,7,Gitano,Jessica
+2020-08-14,0,2,Gitano,Jessica

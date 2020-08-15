@@ -16,6 +16,21 @@ library(pwr)
 library(Hmisc)
 ```
 
+```{r custom function}
+chisq_clues <- function(df, name){
+  name <- enquo(name)
+  
+  res <- df %>%
+    pivot_wider(id_cols = clue,
+                names_from = !! name,
+                values_from = n) %>%
+    column_to_rownames(var = "clue") %>%
+    chisq.test()
+  
+  res
+}
+```
+
 ```{r data, message=FALSE, warning=FALSE}
 clue_search <- read_csv("Data/clue_search_data.csv") %>%
   filter(complete.cases(.))
@@ -35,17 +50,40 @@ operators_by_date <- dates %>%
 
 clue_search <- clue_search %>%
   left_join(operators_by_date, by = c("date", "operator_1" = "operator")) %>%
-  left_join(operators_by_date, by = c("date", "operator_2" = "operator"), suffix = c("_1", "_2"))
+  left_join(operators_by_date, by = c("date", "operator_2" = "operator"), suffix = c("_1", "_2")) %>%
+  mutate(clue = as.character(clue))
 
 rm(dates, operators_by_date)
 ```
 
+```{r generate extra variables}
+clue_search <- clue_search %>%
+  mutate(rhodes_island = if_else(faction_1 == "rhodes_island" | faction_2 == "rhodes_island",
+                                 T,
+                                 F),
+         jessica = if_else(operator_1 == "Jessica" | operator_2 == "Jessica",
+                           T,
+                           F),
+         reception_room = as.logical(reception_room))
+```
 
-```{r summary, message=FALSE, warning=FALSE}
+```{r operator combinations, message=FALSE, warning=FALSE}
 clue_search %>%
   group_by(operator_1, operator_2) %>%
   summarise(n = n()) %>%
   arrange(-n)
+```
+
+```{r summary stats}
+clue_search %>%
+  select(reception_room, rhodes_island, jessica) %>%
+  pivot_longer(c(reception_room, rhodes_island, jessica),
+               names_to = "variable") %>%
+  group_by(variable, value) %>%
+  summarise(n = n()) %>%
+  pivot_wider(id_cols = variable,
+              names_from = value,
+              values_from = n)
 ```
 
 # Graphs
@@ -94,7 +132,6 @@ p_02_clue_share <- data_clue_search %>%
        subtitle = "Operators without Clue Faction bonus",
        caption = caption) +
   scale_y_continuous(labels = scales::percent) +
-  scale_x_continuous(breaks = 1:7) +
   theme_fivethirtyeight()
   
   
@@ -104,9 +141,6 @@ p_02_clue_share
 ```{r rhodes island, message=FALSE, warning=FALSE}
 data_rhodes_island <- clue_search %>%
   filter(bonus_1 == 0, bonus_2 == 0) %>%
-  mutate(rhodes_island = if_else(faction_1 == "rhodes_island" | faction_2 == "rhodes_island",
-                                 "Rhodes Island",
-                                 "No Rhodes Island")) %>%
   group_by(rhodes_island, clue) %>%
   summarise(n = n()) %>%
   ungroup() %>%
@@ -114,21 +148,23 @@ data_rhodes_island <- clue_search %>%
   group_by(rhodes_island) %>%
   mutate(prop = n / sum(n),
          y_lower = binconf(n, sum(n))[,2],
-         y_upper = binconf(n, sum(n))[,3],
-         rhodes_island = factor(rhodes_island, levels = c("Rhodes Island",
-                                                          "No Rhodes Island"))) 
+         y_upper = binconf(n, sum(n))[,3]) 
 
 
 caption <- paste0("Source: vienne")
 
 p_03_rhodes_island <- data_rhodes_island %>%
+  mutate(rhodes_island = if_else(rhodes_island,
+                                 "With Rhodes Island",
+                                 "No Rhodes Island") %>%
+           factor(levels = c("No Rhodes Island",
+                             "With Rhodes Island"))) %>%
   ggplot(aes(x = clue, y = prop, fill = rhodes_island)) +
   geom_col(position = position_dodge()) +
   labs(y = "", title = "Do Rhodes Island Operators Increase Clue Seven?",
        subtitle = "Frequency of clues by operator faction",
        caption = caption) +
   scale_y_continuous(labels = scales::percent) +
-  scale_x_continuous(breaks = 1:7) +
   geom_errorbar(aes(ymin=y_lower, ymax=y_upper), width=.2,
                  position=position_dodge(.9)) +
   theme_fivethirtyeight() +
@@ -136,14 +172,13 @@ p_03_rhodes_island <- data_rhodes_island %>%
   theme(legend.title = element_blank())
   
 p_03_rhodes_island
+
+chisq_clues(data_rhodes_island, rhodes_island)
 ```
 
 ```{r reception, message=FALSE, warning=FALSE}
 data_reception <- clue_search %>%
-  filter(bonus_1 == 0 | bonus_2 == 0) %>%
-  mutate(reception_room = if_else(reception_room == 1,
-                                 "Reception room",
-                                 "Operator")) %>%
+  filter(bonus_1 == 3 | bonus_2 == 3) %>%
   group_by(reception_room, clue) %>%
   summarise(n = n()) %>%
   ungroup() %>%
@@ -151,36 +186,37 @@ data_reception <- clue_search %>%
   group_by(reception_room) %>%
   mutate(prop = n / sum(n),
          y_lower = binconf(n, sum(n))[,2],
-         y_upper = binconf(n, sum(n))[,3],
-         reception_room = factor(reception_room, levels = c("Reception room",
-                                                            "Operator"))) 
+         y_upper = binconf(n, sum(n))[,3]) %>%
+  ungroup()
 
 
 caption <- paste0("Source: vienne")
 
 p_04_reception <- data_reception %>%
+  mutate(reception_room = if_else(reception_room,
+                                  "Reception room",
+                                  "Operator") %>%
+           factor(levels = c("Operator", "Reception room"))) %>%
   ggplot(aes(x = clue, y = prop, fill = reception_room)) +
   geom_col(position = position_dodge()) +
   labs(y = "", title = "Does the Reception Room Matter?",
-       subtitle = "Frequency by clue source, operators with no bonus",
+       subtitle = "Frequency by clue source, clue search with Jessica",
        caption = caption) +
   scale_y_continuous(labels = scales::percent) +
-  scale_x_continuous(breaks = 1:7) +
   geom_errorbar(aes(ymin=y_lower, ymax=y_upper), width=.2,
                  position=position_dodge(.9)) +
   theme_fivethirtyeight() +
-  ggthemes::scale_fill_fivethirtyeight() +
+  scale_fill_fivethirtyeight() +
   theme(legend.title = element_blank())
-  
+
 p_04_reception
+
+chisq_clues(data_reception, reception_room)
 ```
 
 ```{r jessica, message=FALSE, warning=FALSE}
 data_jessica <- clue_search %>%
   filter(bonus_1 %in% c(0, 3), bonus_2 %in% c(0, 3)) %>%
-  mutate(jessica = if_else(operator_1 == "Jessica" | operator_2 == "Jessica",
-                           "Jessica",
-                           "No bonus")) %>%
   group_by(jessica, clue) %>%
   summarise(n = n()) %>%
   ungroup() %>%
@@ -188,21 +224,23 @@ data_jessica <- clue_search %>%
   group_by(jessica) %>%
   mutate(prop = n / sum(n),
          y_lower = binconf(n, sum(n))[,2],
-         y_upper = binconf(n, sum(n))[,3],
-         jessica = factor(jessica, levels = c("No bonus",
-                                              "Jessica"))) 
+         y_upper = binconf(n, sum(n))[,3]) 
 
 
 caption <- paste0("Source: vienne")
 
 p_05_jessica <- data_jessica %>%
+  mutate(jessica = if_else(jessica,
+                           "Jessica",
+                           "No clue bonus") %>%
+           factor(levels = c("No clue bonus",
+                             "Jessica"))) %>%
   ggplot(aes(x = clue, y = prop, fill = jessica)) +
   geom_col(position = position_dodge()) +
   labs(y = "", title = "The Effect of Jessica",
        subtitle = "Frequency of clues by operator type",
        caption = caption) +
   scale_y_continuous(labels = scales::percent) +
-  scale_x_continuous(breaks = 1:7) +
   geom_errorbar(aes(ymin=y_lower, ymax=y_upper), width=.2,
                  position=position_dodge(.9)) +
   theme_fivethirtyeight() +
@@ -210,6 +248,8 @@ p_05_jessica <- data_jessica %>%
   theme(legend.title = element_blank())
   
 p_05_jessica
+
+chisq_clues(data_jessica, jessica)
 ```
 
 ```{r hypothesis test equal probabilities}
@@ -217,9 +257,11 @@ clues <- data_clue_search$n
 res <- chisq.test(clues)
 res
 
-null <- rep(1/7, 7)
-alt <- c(data_clue_search$prop)
-pwr.chisq.test(w=ES.w1(null,alt), df=(7-1), sig.level=0.05, power = .8)
+# statistical power
+pwr.chisq.test(w = 0.5, df = (7-1), sig.level = 0.05, power = 0.8)
+pwr.chisq.test(w = 0.2, df = (7-1), sig.level = 0.05, power = 0.8)
+
+pwr.2p.test(h = ES.h(1/7, 2/7), power = .8)
 ```
 
 ```{r export graphs, message=FALSE, warning=FALSE}
