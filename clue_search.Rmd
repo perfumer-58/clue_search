@@ -16,6 +16,7 @@ library(pwr)
 library(Hmisc)
 ```
 
+This function transforms my graph data into the right format to run a chi-square test.
 ```{r custom function}
 chisq_clues <- function(df, name){
   name <- enquo(name)
@@ -64,13 +65,19 @@ clue_search <- clue_search %>%
          jessica = if_else(operator_1 == "Jessica" | operator_2 == "Jessica",
                            T,
                            F),
-         reception_room = as.logical(reception_room))
+         reception_room = as.logical(reception_room)) %>%
+  rowwise() %>%
+  mutate(team = paste(sort(c(operator_1, operator_2)), collapse = "/")) %>%
+  ungroup()
 ```
 
 ```{r operator combinations, message=FALSE, warning=FALSE}
 clue_search %>%
-  group_by(operator_1, operator_2) %>%
+  group_by(team) %>%
   summarise(n = n()) %>%
+  ungroup() %>%
+  mutate(share_pc = n / sum(n) * 100,
+         share_pc = round(share_pc)) %>%
   arrange(-n)
 ```
 
@@ -83,7 +90,8 @@ clue_search %>%
   summarise(n = n()) %>%
   pivot_wider(id_cols = variable,
               names_from = value,
-              values_from = n)
+              values_from = n) %>%
+  mutate(Total = `FALSE` + `TRUE`)
 ```
 
 # Graphs
@@ -151,6 +159,7 @@ data_rhodes_island <- clue_search %>%
          y_upper = binconf(n, sum(n))[,3]) 
 
 
+
 caption <- paste0("Source: vienne")
 
 p_03_rhodes_island <- data_rhodes_island %>%
@@ -174,6 +183,17 @@ p_03_rhodes_island <- data_rhodes_island %>%
 p_03_rhodes_island
 
 chisq_clues(data_rhodes_island, rhodes_island)
+
+res <- clue_search %>%
+  filter(bonus_1 == 0, bonus_2 == 0) %>%
+  mutate(operators = paste(operator_1, operator_2, sep = "_")) %>%
+  group_by(operators, clue) %>%
+  summarise(n = n()) %>%
+  ungroup() %>% 
+  complete(operators, clue, fill = list(`n` = 0)) %>%
+  chisq_clues(operators)
+
+res
 ```
 
 ```{r reception, message=FALSE, warning=FALSE}
@@ -189,7 +209,6 @@ data_reception <- clue_search %>%
          y_upper = binconf(n, sum(n))[,3]) %>%
   ungroup()
 
-
 caption <- paste0("Source: vienne")
 
 p_04_reception <- data_reception %>%
@@ -199,7 +218,7 @@ p_04_reception <- data_reception %>%
            factor(levels = c("Operator", "Reception room"))) %>%
   ggplot(aes(x = clue, y = prop, fill = reception_room)) +
   geom_col(position = position_dodge()) +
-  labs(y = "", title = "Does the Reception Room Matter?",
+  labs(y = "", title = "Do Bonuses Apply to the Reception Room?",
        subtitle = "Frequency by clue source, clue search with Jessica",
        caption = caption) +
   scale_y_continuous(labels = scales::percent) +
@@ -212,6 +231,11 @@ p_04_reception <- data_reception %>%
 p_04_reception
 
 chisq_clues(data_reception, reception_room)
+
+# n
+data_reception %>%
+  group_by(reception_room) %>%
+  summarise(n = sum(n))
 ```
 
 ```{r jessica, message=FALSE, warning=FALSE}
@@ -261,7 +285,56 @@ res
 pwr.chisq.test(w = 0.5, df = (7-1), sig.level = 0.05, power = 0.8)
 pwr.chisq.test(w = 0.2, df = (7-1), sig.level = 0.05, power = 0.8)
 
-pwr.2p.test(h = ES.h(1/7, 2/7), power = .8)
+pwr.2p.test(h = ES.h(1/7, .4), power = .8)
+```
+
+```{r team}
+data_team <- clue_search %>% 
+  group_by(team, clue) %>%
+  summarise(n = n()) %>%
+  filter(team %in% c("Gitano/Rope",
+                     "Gitano/Shirayuki",
+                     "Rope/Shirayuki")) %>%
+  mutate(prop = n / sum(n),
+         y_lower = binconf(n, sum(n))[,2],
+         y_upper = binconf(n, sum(n))[,3]) 
+
+
+p_06_team <- data_team %>%
+  ggplot(aes(x = clue, y = prop, fill = team)) +
+  geom_col(position = position_dodge()) +
+  labs(y = "", title = "Operator Teams",
+       subtitle = "Frequency of clues by operator team",
+       caption = caption) +
+  scale_y_continuous(labels = scales::percent) +
+  geom_errorbar(aes(ymin=y_lower, ymax=y_upper), width=.2,
+                 position=position_dodge(.9)) +
+  theme_fivethirtyeight() +
+  theme(legend.title = element_blank())
+
+res <- chisq_clues(data_team, team)
+
+p_06_team
+res
+```
+
+```{r lm}
+reg_data <- clue_search %>%
+  mutate(id = 1:n()) %>%
+  pivot_longer(c(operator_1, operator_2),
+               names_to = "variable",
+               values_to = "operator") %>%
+  mutate(dummy = 1) %>%
+  pivot_wider(id_cols = c(id, clue),
+              names_from = c(operator),
+              values_from = dummy,
+              values_fill = 0) %>%
+  mutate(clue_7 = clue == "7")
+
+lm <- lm(clue_7 ~ .- id - clue - Gitano, data = reg_data)
+
+
+summary(lm)
 ```
 
 ```{r export graphs, message=FALSE, warning=FALSE}
@@ -269,13 +342,11 @@ dir.create("Graphs")
 
 mylist <- mget(ls(pattern = "p_"))
 
-names(mylist)
-
-map2(paste0("Graphs/", names(mylist), ".png"),
-     mylist,
-     ggsave,
-     units = "in",
-     width = 7.3,
-     height = 432/700 * 7.3,
-     dpi = 300)
+walk2(paste0("Graphs/", names(mylist), ".png"),
+      mylist,
+      ggsave,
+      units = "in",
+      width = 7.3,
+      height = 432/700 * 7.3,
+      dpi = 300)
 ```
