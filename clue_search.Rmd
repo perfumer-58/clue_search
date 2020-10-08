@@ -317,26 +317,6 @@ res <- chisq_clues(data_team, team)
 p_06_team
 res
 ```
-
-```{r lm}
-reg_data <- clue_search %>%
-  mutate(id = 1:n()) %>%
-  pivot_longer(c(operator_1, operator_2),
-               names_to = "variable",
-               values_to = "operator") %>%
-  mutate(dummy = 1) %>%
-  pivot_wider(id_cols = c(id, clue),
-              names_from = c(operator),
-              values_from = dummy,
-              values_fill = 0) %>%
-  mutate(clue_7 = clue == "7")
-
-lm <- lm(clue_7 ~ .- id - clue - Gitano, data = reg_data)
-
-
-summary(lm)
-```
-
 ```{r export graphs, message=FALSE, warning=FALSE}
 dir.create("Graphs")
 
